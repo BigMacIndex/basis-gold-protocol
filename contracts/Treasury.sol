@@ -15,6 +15,7 @@ import './lib/Safe112.sol';
 import './owner/Operator.sol';
 import './utils/Epoch.sol';
 import './utils/ContractGuard.sol';
+import 'ChainLinkOracle.sol'
 
 /**
  * @title Basis Gold Treasury contract
