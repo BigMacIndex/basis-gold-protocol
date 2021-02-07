@@ -11,12 +11,12 @@ contract MockBoardroom is IBoardroom, Operator {
 
     /* ========== STATE VARIABLES ========== */
 
-    IERC20 public gold;
+    IERC20 public bigMacIndex;
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(address _gold) public {
-        gold = IERC20(_gold);
+    constructor(address bigMacIndex) public {
+        bigMacIndex = IERC20(bigMacIndex);
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -27,7 +27,7 @@ contract MockBoardroom is IBoardroom, Operator {
         onlyOperator
     {
         require(amount > 0, 'Boardroom: Cannot allocate 0');
-        gold.safeTransferFrom(msg.sender, address(this), amount);
+        bigMacIndex.safeTransferFrom(msg.sender, address(this), amount);
         emit RewardAdded(msg.sender, amount);
     }
 

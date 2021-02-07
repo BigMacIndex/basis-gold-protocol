@@ -15,11 +15,11 @@ import './lib/Safe112.sol';
 import './owner/Operator.sol';
 import './utils/Epoch.sol';
 import './utils/ContractGuard.sol';
-import 'ChainLinkOracle.sol'
+import './ChainLinkOracle.sol';
 
 /**
- * @title Basis Gold Treasury contract
- * @notice Monetary policy logic to adjust supplies of basis gold assets
+ * @title Big Mac Index Treasury contract
+ * @notice Monetary policy logic to adjust supplies of Big Mac Index assets
  * @author Summer Smith & Rick Sanchez
  */
 contract Treasury is ContractGuard, Epoch {
@@ -37,12 +37,13 @@ contract Treasury is ContractGuard, Epoch {
 
     // ========== CORE
     address public fund;
-    address public gold;
+    address public macIndex;
     address public bond;
     address public share;
     address public boardroom;
 
-    IOracle public goldOracle;
+    IOracle public macIndexOracle;
+    ChainlinkOracle public tmcOracle; //total market cap oracle
 
     // ========== PARAMS
     uint256 private accumulatedSeigniorage = 0;
@@ -51,19 +52,20 @@ contract Treasury is ContractGuard, Epoch {
     /* ========== CONSTRUCTOR ========== */
 
     constructor(
-        address _gold,
+        address _macIndex,
         address _bond,
         address _share,
-        IOracle _goldOracle,
+        IOracle _macIndexOracle,
+        ChainlinkOracle _tmcOracle,
         address _boardroom,
         address _fund,
         uint256 _startTime
     ) public Epoch(8 hours, _startTime, 0) {
-        gold = _gold;
+        macIndex = _macIndex;
         bond = _bond;
         share = _share;
-        goldOracle = _goldOracle;
-
+        macIndexOracle = _macIndexOracle;
+        tmcOracle = _tmcOracle;
         boardroom = _boardroom;
         fund = _fund;
     }
@@ -78,7 +80,7 @@ contract Treasury is ContractGuard, Epoch {
 
     modifier checkOperator {
         require(
-            IBasisAsset(gold).operator() == address(this) &&
+            IBasisAsset(macIndex).operator() == address(this) &&
                 IBasisAsset(bond).operator() == address(this) &&
                 IBasisAsset(share).operator() == address(this) &&
                 Operator(boardroom).operator() == address(this),
@@ -88,6 +90,18 @@ contract Treasury is ContractGuard, Epoch {
         _;
     }
 
+    /* ========== Oracle FUNCTIONS ========== */
+
+
+    function getOraclePrice(ChainlinkOracle _oracle)
+        public
+        virtual
+        view
+        returns (uint256 price)
+    {
+        price = _oracle.getLatestAnswer().toUint256().mul(oracleDigits);
+    }
+
     /* ========== VIEW FUNCTIONS ========== */
 
     // budget
@@ -95,17 +109,35 @@ contract Treasury is ContractGuard, Epoch {
         return accumulatedSeigniorage;
     }
 
-    function getGoldPrice() public view returns (uint256) {
-        try goldOracle.price1Last() returns (uint256 price) {
+    function getMacIndexPrice() public view returns (uint256) {
+        try macIndexOracle.price1Last() returns (uint256 price) {
             return price;
         } catch {
-            revert('Treasury: failed to consult gold price from the oracle');
+            revert('Treasury: failed to consult macIndex price from the oracle');
         }
     }
 
-    function goldPriceCeiling() public view returns(uint256) {
-        return goldOracle.goldPriceOne().mul(uint256(105)).div(100);
+    /**
+    * @notice Returns the target price of the MCI token
+    * @return target price of the MCI Token
+    * @dev MCI token is 18 decimals
+    * @dev oracle getTotalMarketCap must be in wei format
+    * @dev P = M / d
+    * P = Target MCI Token Price
+    * M = Total Crypto Market Cap
+    * d = Divisor
+    */
+    function getTargetPrice() public virtual view returns (uint256 targetPrice) {
+        uint256 totalMarketPrice = getOraclePrice(tmcOracle);
+        targetPrice = totalMarketPrice.div(10**12);
     }
+
+    function macIndexPriceCeiling() public view returns(uint256) {
+        return getTargetPrice().mul(uint256(105)).div(100);
+    }
+
+    
+
 
     /* ========== GOVERNANCE ========== */
 
@@ -113,10 +145,10 @@ contract Treasury is ContractGuard, Epoch {
         require(!initialized, 'Treasury: initialized');
 
         // burn all of it's balance
-        IBasisAsset(gold).burn(IERC20(gold).balanceOf(address(this)));
+        IBasisAsset(macIndex).burn(IERC20(macIndex).balanceOf(address(this)));
 
         // set accumulatedSeigniorage to it's balance
-        accumulatedSeigniorage = IERC20(gold).balanceOf(address(this));
+        accumulatedSeigniorage = IERC20(macIndex).balanceOf(address(this));
 
         initialized = true;
         emit Initialized(msg.sender, block.number);
@@ -125,10 +157,10 @@ contract Treasury is ContractGuard, Epoch {
     function migrate(address target) public onlyOperator checkOperator {
         require(!migrated, 'Treasury: migrated');
 
-        // gold
-        Operator(gold).transferOperator(target);
-        Operator(gold).transferOwnership(target);
-        IERC20(gold).transfer(target, IERC20(gold).balanceOf(address(this)));
+        // macIndex
+        Operator(macIndex).transferOperator(target);
+        Operator(macIndex).transferOwnership(target);
+        IERC20(macIndex).transfer(target, IERC20(macIndex).balanceOf(address(this)));
 
         // bond
         Operator(bond).transferOperator(target);
@@ -156,11 +188,11 @@ contract Treasury is ContractGuard, Epoch {
 
     /* ========== MUTABLE FUNCTIONS ========== */
 
-    function _updateGoldPrice() internal {
-        try goldOracle.update() {} catch {}
+    function _updatemacIndexPrice() internal {
+        try macIndexOracle.update() {} catch {}
     }
 
-    function buyBonds(uint256 amount, uint256 targetPrice)
+    function buyBonds(uint256 amount, uint256 desiredPurchasePrice)
         external
         onlyOneBlock
         checkMigration
@@ -169,23 +201,24 @@ contract Treasury is ContractGuard, Epoch {
     {
         require(amount > 0, 'Treasury: cannot purchase bonds with zero amount');
 
-        uint256 goldPrice = getGoldPrice();
+        uint256 macIndexPrice = getMacIndexPrice();
+        uint256 targetPrice = getTargetPrice();
 
-        require(goldPrice == targetPrice, 'Treasury: gold price moved');
+        require(macIndexPrice == desiredPurchasePrice, 'Treasury: macIndex price moved');
         require(
-            goldPrice < goldOracle.goldPriceOne(),
-            'Treasury: goldPrice not eligible for bond purchase'
+            macIndexPrice < targetPrice,
+            'Treasury: macIndexPrice not eligible for bond purchase'
         );
 
-        uint256 priceRatio = goldPrice.mul(1e18).div(goldOracle.goldPriceOne());
-        IBasisAsset(gold).burnFrom(msg.sender, amount);
+        uint256 priceRatio = macIndexPrice.mul(1e18).div(getTargetPrice());
+        IBasisAsset(macIndex).burnFrom(msg.sender, amount);
         IBasisAsset(bond).mint(msg.sender, amount.mul(1e18).div(priceRatio));
-        _updateGoldPrice();
+        _updatemacIndexPrice();
 
         emit BoughtBonds(msg.sender, amount);
     }
 
-    function redeemBonds(uint256 amount, uint256 targetPrice)
+    function redeemBonds(uint256 amount, uint256 desiredPurchasePrice)
         external
         onlyOneBlock
         checkMigration
@@ -194,14 +227,14 @@ contract Treasury is ContractGuard, Epoch {
     {
         require(amount > 0, 'Treasury: cannot redeem bonds with zero amount');
 
-        uint256 goldPrice = getGoldPrice();
-        require(goldPrice == targetPrice, 'Treasury: gold price moved');
+        uint256 macIndexPrice = getMacIndexPrice();
+        require(macIndexPrice == targetPrice, 'Treasury: macIndex price moved');
         require(
-            goldPrice > goldPriceCeiling(), // price > realGoldPrice * 1.05
-            'Treasury: goldPrice not eligible for bond purchase'
+            macIndexPrice > macIndexPriceCeiling(), // price > realmacIndexPrice * 1.05
+            'Treasury: macIndexPrice not eligible for bond purchase'
         );
         require(
-            IERC20(gold).balanceOf(address(this)) >= amount,
+            IERC20(macIndex).balanceOf(address(this)) >= amount,
             'Treasury: treasury has no more budget'
         );
 
@@ -210,8 +243,8 @@ contract Treasury is ContractGuard, Epoch {
         );
 
         IBasisAsset(bond).burnFrom(msg.sender, amount);
-        IERC20(gold).safeTransfer(msg.sender, amount);
-        _updateGoldPrice();
+        IERC20(macIndex).safeTransfer(msg.sender, amount);
+        _updatemacIndexPrice();
 
         emit RedeemedBonds(msg.sender, amount);
     }
@@ -224,26 +257,26 @@ contract Treasury is ContractGuard, Epoch {
         checkEpoch
         checkOperator
     {
-        _updateGoldPrice();
-        uint256 goldPrice = getGoldPrice();
-        if (goldPrice <= goldPriceCeiling()) {
+        _updatemacIndexPrice();
+        uint256 macIndexPrice = getMacIndexPrice();
+        if (macIndexPrice <= macIndexPriceCeiling()) {
             return; // just advance epoch instead revert
         }
 
         // circulating supply
-        uint256 goldSupply = IERC20(gold).totalSupply().sub(
+        uint256 macIndexSupply = IERC20(macIndex).totalSupply().sub(
             accumulatedSeigniorage
         );
-        uint256 percentage = (goldPrice.mul(1e18).div(goldOracle.goldPriceOne())).sub(1e18);
-        uint256 seigniorage = goldSupply.mul(percentage).div(1e18);
-        IBasisAsset(gold).mint(address(this), seigniorage);
+        uint256 percentage = (macIndexPrice.mul(1e18).div(getTargetPrice())).sub(1e18);
+        uint256 seigniorage = macIndexSupply.mul(percentage).div(1e18);
+        IBasisAsset(macIndex).mint(address(this), seigniorage);
 
         // ======================== BIP-3
         uint256 fundReserve = seigniorage.mul(fundAllocationRate).div(100);
         if (fundReserve > 0) {
-            IERC20(gold).safeApprove(fund, fundReserve);
+            IERC20(macIndex).safeApprove(fund, fundReserve);
             ISimpleERCFund(fund).deposit(
-                gold,
+                macIndex,
                 fundReserve,
                 'Treasury: Seigniorage Allocation'
             );
@@ -267,7 +300,7 @@ contract Treasury is ContractGuard, Epoch {
         // boardroom
         uint256 boardroomReserve = seigniorage.sub(treasuryReserve);
         if (boardroomReserve > 0) {
-            IERC20(gold).safeApprove(boardroom, boardroomReserve);
+            IERC20(macIndex).safeApprove(boardroom, boardroomReserve);
             IBoardroom(boardroom).allocateSeigniorage(boardroomReserve);
             emit BoardroomFunded(now, boardroomReserve);
         }

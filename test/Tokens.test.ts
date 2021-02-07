@@ -21,12 +21,12 @@ describe('Tokens', () => {
   });
 
   let Bond: ContractFactory;
-  let Gold: ContractFactory;
+  let BigMacIndex: ContractFactory;
   let Share: ContractFactory;
 
   before('fetch contract factories', async () => {
     Bond = await ethers.getContractFactory('Bond');
-    Gold = await ethers.getContractFactory('Gold');
+    BigMacIndex = await ethers.getContractFactory('BigMacIndex');
     Share = await ethers.getContractFactory('Share');
   });
 
@@ -61,11 +61,11 @@ describe('Tokens', () => {
     });
   });
 
-  describe('Gold', () => {
+  describe('BigMacIndex', () => {
     let token: Contract;
 
     before('deploy token', async () => {
-      token = await Gold.connect(operator).deploy();
+      token = await BigMacIndex.connect(operator).deploy();
     });
 
     it('mint', async () => {

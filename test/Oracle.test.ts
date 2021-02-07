@@ -53,7 +53,7 @@ describe('Oracle', () => {
     [operator, whale] = await ethers.getSigners();
   });
 
-  let Gold: ContractFactory;
+  let BigMacIndex: ContractFactory;
   let Share: ContractFactory;
   let Oracle: ContractFactory;
   let MockDAI: ContractFactory;
@@ -70,7 +70,7 @@ describe('Oracle', () => {
   );
 
   before('fetch contract factories', async () => {
-    Gold = await ethers.getContractFactory('Gold');
+    BigMacIndex = await ethers.getContractFactory('BigMacIndex');
     Share = await ethers.getContractFactory('Share');
     Oracle = await ethers.getContractFactory('Oracle');
     MockDAI = await ethers.getContractFactory('MockDai');
@@ -89,7 +89,7 @@ describe('Oracle', () => {
   });
 
   let dai: Contract;
-  let gold: Contract;
+  let bigMacIndex: Contract;
   let share: Contract;
   let oracle: Contract;
   let linkOracle: Contract;
@@ -97,21 +97,21 @@ describe('Oracle', () => {
 
   beforeEach('deploy contracts', async () => {
     dai = await MockDAI.connect(operator).deploy();
-    gold = await Gold.connect(operator).deploy();
+    bigMacIndex = await BigMacIndex.connect(operator).deploy();
     share = await Share.connect(operator).deploy();
     linkOracle = await MockLinkOracle.connect(operator).deploy();
 
     await dai.connect(operator).mint(operator.address, ETH.mul(2));
     await dai.connect(operator).approve(router.address, ETH.mul(2));
-    await gold.connect(operator).mint(operator.address, ETH);
-    await gold.connect(operator).approve(router.address, ETH);
+    await bigMacIndex.connect(operator).mint(operator.address, ETH);
+    await bigMacIndex.connect(operator).approve(router.address, ETH);
 
-    await addLiquidity(provider, operator, router, gold, dai, ETH);
+    await addLiquidity(provider, operator, router, bigMacIndex, dai, ETH);
 
     oracleStartTime = BigNumber.from(await latestBlocktime(provider)).add(DAY);
     oracle = await Oracle.connect(operator).deploy(
       factory.address,
-      gold.address,
+      bigMacIndex.address,
       dai.address,
       DAY,
       oracleStartTime,

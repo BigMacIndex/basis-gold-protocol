@@ -5,9 +5,9 @@ import './owner/Operator.sol';
 
 contract Gold is ERC20Burnable, Operator {
     /**
-     * @notice Constructs the Basis Gold ERC-20 contract.
+     * @notice Constructs the Mac Index ERC-20 contract.
      */
-    constructor() public ERC20('BSG', 'BSG') {
+    constructor() public ERC20('BMI', 'BMI') {
         // Mints Basis Gold to contract creator for initial Uniswap oracle deployment.
         // Will be burned after oracle deployment
         _mint(msg.sender, 10**15);

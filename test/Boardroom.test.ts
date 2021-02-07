@@ -22,25 +22,25 @@ describe('Boardroom', () => {
     [operator, whale, abuser] = await ethers.getSigners();
   });
 
-  let Gold: ContractFactory;
+  let BigMacIndex: ContractFactory;
   let Share: ContractFactory;
   let Boardroom: ContractFactory;
 
   before('fetch contract factories', async () => {
-    Gold = await ethers.getContractFactory('Gold');
+    BigMacIndex = await ethers.getContractFactory('BigMacIndex');
     Share = await ethers.getContractFactory('Share');
     Boardroom = await ethers.getContractFactory('Boardroom');
   });
 
-  let gold: Contract;
+  let bigMacIndex: Contract;
   let share: Contract;
   let boardroom: Contract;
 
   beforeEach('deploy contracts', async () => {
-    gold = await Gold.connect(operator).deploy();
+    bigMacIndex = await BigMacIndex.connect(operator).deploy();
     share = await Share.connect(operator).deploy();
     boardroom = await Boardroom.connect(operator).deploy(
-      gold.address,
+      bigMacIndex.address,
       share.address
     );
   });
@@ -140,8 +140,8 @@ describe('Boardroom', () => {
     });
 
     it('should allocate seigniorage to stakers', async () => {
-      await gold.connect(operator).mint(operator.address, SEIGNIORAGE_AMOUNT);
-      await gold
+      await bigMacIndex.connect(operator).mint(operator.address, SEIGNIORAGE_AMOUNT);
+      await bigMacIndex
         .connect(operator)
         .approve(boardroom.address, SEIGNIORAGE_AMOUNT);
 
@@ -182,8 +182,8 @@ describe('Boardroom', () => {
     });
 
     it('should claim devidends', async () => {
-      await gold.connect(operator).mint(operator.address, SEIGNIORAGE_AMOUNT);
-      await gold
+      await bigMacIndex.connect(operator).mint(operator.address, SEIGNIORAGE_AMOUNT);
+      await bigMacIndex
         .connect(operator)
         .approve(boardroom.address, SEIGNIORAGE_AMOUNT);
       await boardroom.connect(operator).allocateSeigniorage(SEIGNIORAGE_AMOUNT);
@@ -195,8 +195,8 @@ describe('Boardroom', () => {
     });
 
    it('should claim devidends correctly even after other person stakes after snapshot', async () => {
-      await gold.connect(operator).mint(operator.address, SEIGNIORAGE_AMOUNT);
-      await gold
+      await bigMacIndex.connect(operator).mint(operator.address, SEIGNIORAGE_AMOUNT);
+      await bigMacIndex
         .connect(operator)
         .approve(boardroom.address, SEIGNIORAGE_AMOUNT);
       await boardroom.connect(operator).allocateSeigniorage(SEIGNIORAGE_AMOUNT);

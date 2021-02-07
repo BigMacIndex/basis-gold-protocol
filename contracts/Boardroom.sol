@@ -65,15 +65,15 @@ contract Boardroom is ShareWrapper, ContractGuard, Operator {
 
     /* ========== STATE VARIABLES ========== */
 
-    IERC20 private gold;
+    IERC20 private macIndex;
 
     mapping(address => Boardseat) private directors;
     BoardSnapshot[] private boardHistory;
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(IERC20 _gold, IERC20 _share) public {
-        gold = _gold;
+    constructor(IERC20 _macIndex, IERC20 _share) public {
+        macIndex = _macIndex;
         share = _share;
 
         BoardSnapshot memory genesisSnapshot = BoardSnapshot({
@@ -181,7 +181,7 @@ contract Boardroom is ShareWrapper, ContractGuard, Operator {
         uint256 reward = directors[msg.sender].rewardEarned;
         if (reward > 0) {
             directors[msg.sender].rewardEarned = 0;
-            gold.safeTransfer(msg.sender, reward);
+            macIndex.safeTransfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -208,7 +208,7 @@ contract Boardroom is ShareWrapper, ContractGuard, Operator {
         });
         boardHistory.push(newSnapshot);
 
-        gold.safeTransferFrom(msg.sender, address(this), amount);
+        macIndex.safeTransferFrom(msg.sender, address(this), amount);
         emit RewardAdded(msg.sender, amount);
     }
 

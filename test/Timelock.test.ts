@@ -38,59 +38,63 @@ describe('Timelock', () => {
   });
 
   let Bond: ContractFactory;
-  let Gold: ContractFactory;
+  let BigMacIndex: ContractFactory;
   let Share: ContractFactory;
   let Timelock: ContractFactory;
   let Treasury: ContractFactory;
   let Boardroom: ContractFactory;
   let MockOracle: ContractFactory;
+  let AggregatorInterface: ContractFactory;
 
   before('fetch contract factories', async () => {
     Bond = await ethers.getContractFactory('Bond');
-    Gold = await ethers.getContractFactory('Gold');
+    BigMacIndex = await ethers.getContractFactory('BigMacIndex');
     Share = await ethers.getContractFactory('Share');
     Timelock = await ethers.getContractFactory('Timelock');
     Treasury = await ethers.getContractFactory('Treasury');
     Boardroom = await ethers.getContractFactory('Boardroom');
     MockOracle = await ethers.getContractFactory('MockOracle');
+    AggregatorInterface = await ethers.getContractFactory('AggregatorInterface');
   });
 
   let bond: Contract;
-  let gold: Contract;
+  let bigMacIndex: Contract;
   let share: Contract;
   let timelock: Contract;
   let treasury: Contract;
   let boardroom: Contract;
   let oracle: Contract;
-
+  let aggregatorInterface: Contract;
   let startTime: number;
 
   beforeEach('deploy contracts', async () => {
     bond = await Bond.connect(operator).deploy();
-    gold = await Gold.connect(operator).deploy();
+    bigMacIndex = await BigMacIndex.connect(operator).deploy();
     share = await Share.connect(operator).deploy();
     oracle = await MockOracle.connect(operator).deploy();
+    aggregatorInterface = await AggregatorInterface.connect(operator).deploy();
     timelock = await Timelock.connect(operator).deploy(
       operator.address,
       2 * DAY
     );
 
     boardroom = await Boardroom.connect(operator).deploy(
-      gold.address,
+      bigMacIndex.address,
       share.address
     );
 
     treasury = await Treasury.connect(operator).deploy(
-      gold.address,
+      bigMacIndex.address,
       bond.address,
       share.address,
       oracle.address,
+      aggregatorInterface.address,
       boardroom.address,
       ZERO_ADDR,
       (await latestBlocktime(provider)) + 7 * DAY
     );
 
-    for await (const token of [gold, bond, share]) {
+    for await (const token of [bigMacIndex, bond, share]) {
       await token.connect(operator).mint(treasury.address, ETH);
       await token.connect(operator).transferOperator(treasury.address);
       await token.connect(operator).transferOwnership(treasury.address);
@@ -140,10 +144,11 @@ describe('Timelock', () => {
 
     beforeEach('deploy new treasury', async () => {
       newTreasury = await Treasury.connect(operator).deploy(
-        gold.address,
+        bigMacIndex.address,
         bond.address,
         share.address,
         oracle.address,
+        aggregatorInterface.address,
         boardroom.address,
         ZERO_ADDR,
         startTime
@@ -177,7 +182,7 @@ describe('Timelock', () => {
         .to.emit(treasury, 'Migration')
         .withArgs(newTreasury.address);
 
-      for await (const token of [gold, bond, share]) {
+      for await (const token of [bigMacIndex, bond, share]) {
         expect(await token.balanceOf(newTreasury.address)).to.eq(ETH);
         expect(await token.owner()).to.eq(newTreasury.address);
         expect(await token.operator()).to.eq(newTreasury.address);

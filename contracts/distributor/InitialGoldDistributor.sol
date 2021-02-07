@@ -27,7 +27,7 @@ contract InitialGoldDistributor is IDistributor {
         IRewardDistributionRecipient _lpPool,
         uint256 _totalInitialBalance
     ) public {
-        require(_stablePools.length != 0, 'a list of BSG pools are required');
+        require(_stablePools.length != 0, 'a list of BMS pools are required');
 
         gold = _gold;
         stablePools = _stablePools;

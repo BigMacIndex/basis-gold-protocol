@@ -12,3 +12,9 @@ truffle-config.js
 
 *.log
 !deployments/*.log
+
+node_modules
+
+#Hardhat files
+cache
+artifacts

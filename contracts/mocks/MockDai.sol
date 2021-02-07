@@ -5,16 +5,16 @@ import '../owner/Operator.sol';
 
 contract MockDai is ERC20Burnable, Operator {
     /**
-     * @notice Constructs the Basis Gold ERC-20 contract.
+     * @notice Constructs the Basis bigMacIndex ERC-20 contract.
      */
     constructor() public ERC20('DAI', 'DAI') {
         _mint(msg.sender, 10000 * 10**18);
     }
 
     /**
-     * @notice Operator mints dino gold to a recipient
+     * @notice Operator mints dino bigMacIndex to a recipient
      * @param recipient_ The address of recipient
-     * @param amount_ The amount of dino gold to mint to
+     * @param amount_ The amount of dino bigMacIndex to mint to
      * @return whether the process has been done
      */
     function mint(address recipient_, uint256 amount_)

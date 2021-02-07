@@ -67,7 +67,7 @@ contract Oracle is Epoch {
         emit Updated(priceData.price0CumulativeLast, priceData.price1CumulativeLast);
     }
 
-    function goldPriceOne() external view returns(uint256) {
+    function macIndexPriceOne() external view returns(uint256) {
         return uint256(linkOracle.latestAnswer() * 1e10);
     }
 
